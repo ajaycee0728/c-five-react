@@ -1,10 +1,10 @@
 import logo from './logo.svg';
-// import './App.css';
+import './App.css';
 import React, { useEffect, useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { Box, CssBaseline, Button } from '@mui/material';
+import { Alert, Box, IconButton, Collapse, TextField, MenuItem } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { Container } from 'react-bootstrap';
+import {  Container } from 'react-bootstrap';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -13,28 +13,15 @@ import TableHead from '@mui/material/TableHead';
 import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
 import TableSortLabel from '@mui/material/TableSortLabel';
-import Toolbar from '@mui/material/Toolbar';
-import Typography from '@mui/material/Typography';
-import Paper from '@mui/material/Paper';
-import Checkbox from '@mui/material/Checkbox';
-import IconButton from '@mui/material/IconButton';
-import Tooltip from '@mui/material/Tooltip';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Switch from '@mui/material/Switch';  
+import Toolbar from '@mui/material/Toolbar'; 
 import { visuallyHidden } from '@mui/utils';
 import PropTypes from 'prop-types'; 
-import { GetAll } from './DataAccess/Guitar';
+import { GetAll, register, update, remove } from './DataAccess/Guitar';
 import moment from 'moment';
-
-function createData(name, calories, fat, carbs, protein) {
-  return {
-    name,
-    calories,
-    fat,
-    carbs,
-    protein,
-  };
-}
+import Create from './Components/Create';
+import Update from './Components/Update';
+import DeleteIcon from '@mui/icons-material/Delete'; 
+import CloseIcon from '@mui/icons-material/Close';
 
 function descendingComparator(a, b, orderBy) {
   if (b[orderBy] < a[orderBy]) {
@@ -66,6 +53,14 @@ function stableSort(array, comparator) {
   return stabilizedThis.map((el) => el[0]);
 }
 
+function filterByValue(array, string, column) {  
+  if(string === '') {
+    return array
+  } else {   
+    return array.filter(o => o[column] === string) === undefined ? [] :  array.filter(o => o[column] === string) ;
+  }
+}
+
 const headCells = [
   {
     id: 'name',
@@ -91,24 +86,7 @@ const headCells = [
     disablePadding: false,
     label: 'Date Bought',
   }
-];
-
-
-// const rows = [
-//   createData('Cupcake', 305, 3.7, 67, 4.3),
-//   createData('Donut', 452, 25.0, 51, 4.9),
-//   createData('Eclair', 262, 16.0, 24, 6.0),
-//   createData('Frozen yoghurt', 159, 6.0, 24, 4.0),
-//   createData('Gingerbread', 356, 16.0, 49, 3.9),
-//   createData('Honeycomb', 408, 3.2, 87, 6.5),
-//   createData('Ice cream sandwich', 237, 9.0, 37, 4.3),
-//   createData('Jelly Bean', 375, 0.0, 94, 0.0),
-//   createData('KitKat', 518, 26.0, 65, 7.0),
-//   createData('Lollipop', 392, 0.2, 98, 0.0),
-//   createData('Marshmallow', 318, 0, 81, 2.0),
-//   createData('Nougat', 360, 19.0, 9, 37.0),
-//   createData('Oreo', 437, 18.0, 63, 4.0),
-// ];
+]; 
 
 function EnhancedTableHead(props) {
   const { onSelectAllClick, order, orderBy, numSelected, rowCount, onRequestSort } =
@@ -141,6 +119,7 @@ function EnhancedTableHead(props) {
             </TableSortLabel>
           </TableCell>
         ))}
+        <TableCell align='right'> Action </TableCell>
       </TableRow>
     </TableHead>
   );
@@ -156,8 +135,7 @@ EnhancedTableHead.propTypes = {
 };
 
 const EnhancedTableToolbar = (props) => {
-  const { numSelected } = props;
-
+  const { numSelected } = props; 
   return (
     <Toolbar
       sx={{
@@ -177,20 +155,64 @@ EnhancedTableToolbar.propTypes = {
   numSelected: PropTypes.number.isRequired,
 };
 
-function App() { const [order, setOrder] = React.useState('asc');
-const [rows , setRows] = useState([]);
-const [orderBy, setOrderBy] = React.useState('calories');
-const [selected, setSelected] = React.useState([]);
-const [page, setPage] = React.useState(0);
-const [dense, setDense] = React.useState(false);
-const [rowsPerPage, setRowsPerPage] = React.useState(5);
+function App() { const [order, setOrder]  = useState('asc');
+const [rows , setRows]                    = useState([]);
+const [orderBy, setOrderBy]               = useState('name');
+const [selected, setSelected]             = useState([]);
+const [page, setPage]                     = useState(0);
+const [dense, setDense]                   = useState(false);
+const [rowsPerPage, setRowsPerPage]       = useState(5);
+const [open, setOpen]                     = useState(false);
+const [message, setMessage]               = useState('');
+const [search, setSearch]                 = useState('');
+const [column, setColumn]                 = useState('name');
 
 useEffect(() => { 
-  GetAll().then((response)=>{
-    console.log(response)
-    setRows(response.data.data);
-  })
-}, [])
+  GetAll()
+    .then((response)=>{ 
+      setRows(response.data.data);
+    }) 
+}, []);
+
+const RegisterGuitar = (values) =>{
+  register(values)
+    .then((response) =>{
+      setRows(rows.concat(response.data.data));
+      setMessage('Guitar Successfully Registered');
+    })
+    .finally(()=>{
+      setOpen(true);
+      CloseAlert();
+    })
+}
+
+const UpdateGuitar = (values, id) =>{ 
+  update(values, id)
+    .then((response)=>{ 
+      let index   = rows.findIndex(e=> e.id === id); 
+      let tempObj = rows.filter((row) => row.id !== id); 
+      tempObj.splice(index, 0, response.data);
+      setRows(tempObj); 
+      setMessage('Guitar Successfully Updated');
+    })
+    .finally(()=>{
+      setOpen(true);
+      CloseAlert();
+    })
+} 
+
+const RemoveGuitar = (id) =>{
+  remove(id)
+    .then(()=> {
+      setRows(rows.filter((row) => row.id !== id)); 
+      setMessage('Guitar Successfully Deleted');
+    })
+    .finally(()=>{
+      setOpen(true);
+      CloseAlert();
+    })
+}
+
 const handleRequestSort = (event, property) => {
   const isAsc = orderBy === property && order === 'asc';
   setOrder(isAsc ? 'desc' : 'asc');
@@ -222,7 +244,6 @@ const handleClick = (event, name) => {
       selected.slice(selectedIndex + 1),
     );
   }
-
   setSelected(newSelected);
 };
 
@@ -235,18 +256,68 @@ const handleChangeRowsPerPage = (event) => {
   setPage(0);
 }; 
 
-const isSelected = (name) => selected.indexOf(name) !== -1;
-
+const CloseAlert =()=> {
+  setTimeout(() => {
+    setOpen(false);
+  }, 1500);
+}
+  
 // Avoid a layout jump when reaching the last page with empty rows.
 const emptyRows = page > 0 ? Math.max(0, (1 + page) * rowsPerPage - rows.length) : 0;
   return (
     <div className="App"> 
-      <Container fixed>
-        <Box sx={{ bgcolor: '#fff', height: '100vh' }}>
-          <Button>
-            te
-          </Button>
-          <EnhancedTableToolbar numSelected={selected.length} />
+      <Collapse 
+        in={open}
+        className='guitar-alert' 
+      >
+        <Alert 
+         variant="outlined" severity="info"
+         action={
+          <IconButton
+            aria-label="close"
+            color="inherit"
+            size="small"
+            onClick={() => {
+              setOpen(false);
+            }}
+          >
+          <CloseIcon fontSize="inherit" />
+        </IconButton>
+      }>
+          {message}
+        </Alert>
+      </Collapse>
+      <Container fixed className='d-flex align-items-center justify-content-center h-100'> 
+      <div className='table-container'>
+        <div className='d-flex justify-content-between'>
+          <div>
+            <Create RegisterGuitar={RegisterGuitar}/> 
+          </div>
+          <div>
+            <TextField
+              id="filled-select-currency"
+              select
+              label="Select" 
+              helperText="Select Column to Filter"
+              variant="standard"
+              defaultValue={'name'}
+              onChange={e=> setColumn(e.target.value)}
+              size='small'
+            > 
+                <MenuItem key={'name'} value={'name'}>
+                  Name
+                </MenuItem> 
+                <MenuItem key={'type'} value={'type'}>
+                  Type
+                </MenuItem> 
+                <MenuItem key={'brand'} value={'brand'}>
+                  Brand
+                </MenuItem> 
+            </TextField>
+            <TextField onChange={e=> setSearch(e.target.value)} label="Search" variant="standard" size='small'/> 
+          </div> 
+        </div>
+        
         <TableContainer>
           <Table
             sx={{ minWidth: 750 }}
@@ -264,8 +335,8 @@ const emptyRows = page > 0 ? Math.max(0, (1 + page) * rowsPerPage - rows.length)
             <TableBody>
               {/* if you don't need to support IE11, you can replace the `stableSort` call with:
                  rows.slice().sort(getComparator(order, orderBy)) */}
-              {stableSort(rows, getComparator(order, orderBy))
-                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+              {filterByValue(stableSort(rows, getComparator(order, orderBy))
+                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage), search, column)
                 .map((row, index) => { 
                   const labelId = `enhanced-table-checkbox-${index}`;
 
@@ -288,6 +359,12 @@ const emptyRows = page > 0 ? Math.max(0, (1 + page) * rowsPerPage - rows.length)
                       <TableCell align="right">{row.type}</TableCell>
                       <TableCell align="right">{row.brand}</TableCell>
                       <TableCell align="right">{moment(row.date_bought).format("MMM D, YYYY")}</TableCell> 
+                      <TableCell align='right'>
+                          <Update row={row} UpdateGuitar={UpdateGuitar}/>
+                          <IconButton onClick={e=> RemoveGuitar(row.id)}>
+                            <DeleteIcon/>
+                          </IconButton>
+                          </TableCell>
                     </TableRow>
                   );
                 })}
@@ -307,8 +384,8 @@ const emptyRows = page > 0 ? Math.max(0, (1 + page) * rowsPerPage - rows.length)
           page={page}
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
-        />  
-        </Box>
+        />   
+        </div>
       </Container>
     </div>
   );

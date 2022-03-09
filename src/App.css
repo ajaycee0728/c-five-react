@@ -1,5 +1,5 @@
-.App {
-  text-align: center;
+.App { 
+  height: 100vh;
 }
 
 .App-logo {
@@ -24,6 +24,18 @@
   color: white;
 }
 
+.table-container {
+  box-shadow: 4px 4px 10px #bfbfbf;
+  padding: 18px;
+  background: #3e3e3e08;
+  border-radius: 9px;
+}
+
+.guitar-alert {
+  position: absolute;
+  right: 20px;
+  top: 20px; 
+}
 .App-link {
   color: #61dafb;
 }
